@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Calendar</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --accent: #6c8ef7;
+    --accent2: #a78bfa;
+    --text: #e8eaf6;
+    --muted: #6b7280;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --border: rgba(108,142,247,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #0f1117 0%, #13162a 100%);
+  }
+
+  .date-block { display: flex; flex-direction: column; gap: 2px; }
+
+  .day-label {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .date-label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .clock {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.8rem;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+
+  .period {
+    font-size: 1rem;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+  #auth-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  #auth-btn:hover { opacity: 0.85; }
+  #auth-btn.connected {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-size: 0.78rem;
+    padding: 6px 14px;
+    cursor: default;
+  }
+
+  /* ── Main grid ── */
+  main {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 0;
+    overflow: hidden;
+    height: calc(100vh - 90px);
+  }
+
+  /* ── Today panel ── */
+  .today-panel {
+    padding: 28px 32px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+
+  .panel-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  .now-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+
+  .now-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .now-text { font-size: 0.82rem; color: var(--green); }
+
+  .event-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .event-card:hover { border-color: var(--accent); }
+
+  .event-card.current {
+    border-color: var(--accent);
+    background: linear-gradient(135deg, #1a1d27 0%, #1c2040 100%);
+  }
+
+  .event-card.current::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 3px 0 0 3px;
+  }
+
+  .event-card.all-day::before {
+    background: var(--accent2);
+  }
+
+  .event-time {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .event-name {
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .event-location {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 5px;
+  }
+
+  .event-tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+    margin-top: 8px;
+    background: rgba(108,142,247,0.15);
+    color: var(--accent);
+  }
+
+  .event-tag.now { background: rgba(74,222,128,0.12); color: var(--green); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 0.9rem; }
+
+  /* ── Week panel ── */
+  .week-panel {
+    padding: 28px 24px;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+
+  .week-day {
+    margin-bottom: 20px;
+  }
+
+  .week-day-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .week-day-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  .week-day-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.1rem;
+    color: var(--text);
+  }
+
+  .week-day-num.today-num {
+    color: var(--accent);
+  }
+
+  .week-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    background: var(--surface);
+    border: 1px solid transparent;
+    font-size: 0.82rem;
+  }
+
+  .week-event-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .week-event-info { flex: 1; min-width: 0; }
+  .week-event-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .week-event-time { color: var(--muted); font-size: 0.75rem; margin-top: 1px; }
+
+  /* ── Auth overlay ── */
+  #auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,17,23,0.96);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+  }
+
+  .auth-icon { font-size: 3rem; margin-bottom: 16px; }
+
+  .auth-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .auth-desc {
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .auth-big-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    margin-bottom: 10px;
+  }
+  .auth-big-btn:hover { opacity: 0.9; }
+
+  .auth-note {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .refresh-info {
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-icon">📅</div>
+    <h1 class="auth-title">Family Calendar</h1>
+    <p class="auth-desc">Connect your Google Calendar to see today's events, upcoming schedule, and get a Skylight-style dashboard for your home display.</p>
+    <button class="auth-big-btn" onclick="startAuth()">Connect Google Calendar</button>
+    <p class="auth-note">You'll be asked to sign in with Google and grant read access to your calendar. This page never stores your data.</p>
+  </div>
+</div>
+
+<header>
+  <div class="date-block">
+    <div class="day-label" id="day-label">Sunday</div>
+    <div class="date-label" id="date-label">June 28, 2026</div>
+  </div>
+  <div class="header-right">
+    <div class="clock"><span id="clock-time">12:00</span><span class="period" id="clock-period">PM</span></div>
+    <button id="auth-btn" onclick="startAuth()">Connect Calendar</button>
+  </div>
+</header>
+
+<main>
+  <div class="today-panel">
+    <div class="panel-title">Today's Schedule</div>
+    <div id="today-content">
+      <div class="empty-state">
+        <div class="icon">📅</div>
+        <p>Connect your calendar to see today's events</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="week-panel">
+    <div class="panel-title">Coming Up</div>
+    <div id="week-content">
+      <div class="empty-state">
+        <p style="font-size:0.8rem">Week view appears after connecting</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+// REPLACE THIS with your Google API Client ID:
+// 1. Go to https://console.cloud.google.com/apis/credentials
+// 2. Create a project → Enable Google Calendar API
+// 3. Create OAuth 2.0 Client ID (Web application)
+// 4. Add this page's URL (or http://localhost) to Authorized JS origins
+// 5. Paste the Client ID below
+const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
+const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+// ────────────────────────────────────────────────────────────
+
+let tokenClient;
+let accessToken = null;
+let refreshInterval = null;
+
+// ── Clock ────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  document.getElementById('day-label').textContent = days[now.getDay()];
+  document.getElementById('date-label').textContent = `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+
+  let h = now.getHours();
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const period = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  document.getElementById('clock-time').textContent = `${h}:${m}`;
+  document.getElementById('clock-period').textContent = period;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Google Auth ───────────────────────────────────────────────
+function loadGIS() {
+  if (CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID_HERE') return; // demo mode
+  const script = document.createElement('script');
+  script.src = 'https://accounts.google.com/gsi/client';
+  script.onload = initGIS;
+  document.head.appendChild(script);
+}
+
+function initGIS() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { alert('Auth failed: ' + resp.error); return; }
+      accessToken = resp.access_token;
+      onConnected();
+    }
+  });
+}
+
+function startAuth() {
+  if (CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID_HERE') {
+    showDemoMode();
+    return;
+  }
+  if (!tokenClient) { loadGIS(); setTimeout(() => tokenClient && tokenClient.requestAccessToken(), 1500); return; }
+  tokenClient.requestAccessToken();
+}
+
+function onConnected() {
+  document.getElementById('auth-overlay').style.display = 'none';
+  const btn = document.getElementById('auth-btn');
+  btn.textContent = '✓ Connected';
+  btn.className = 'connected';
+  fetchCalendarData();
+  if (refreshInterval) clearInterval(refreshInterval);
+  refreshInterval = setInterval(fetchCalendarData, 5 * 60 * 1000); // refresh every 5 min
+}
+
+// ── Calendar API ──────────────────────────────────────────────
+async function fetchCalendarData() {
+  const now = new Date();
+  const startOfDay = new Date(now); startOfDay.setHours(0,0,0,0);
+  const endOfWeek = new Date(now); endOfWeek.setDate(endOfWeek.getDate() + 7); endOfWeek.setHours(23,59,59,0);
+
+  const params = new URLSearchParams({
+    timeMin: startOfDay.toISOString(),
+    timeMax: endOfWeek.toISOString(),
+    singleEvents: true,
+    orderBy: 'startTime',
+    maxResults: 50
+  });
+
+  try {
+    const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!resp.ok) throw new Error('Calendar fetch failed');
+    const data = await resp.json();
+    renderEvents(data.items || []);
+  } catch(e) {
+    console.error(e);
+    document.getElementById('today-content').innerHTML = `<div class="empty-state"><p>Couldn't load events. Try refreshing.</p></div>`;
+  }
+}
+
+// ── Rendering ─────────────────────────────────────────────────
+function renderEvents(events) {
+  const now = new Date();
+  const todayStr = now.toDateString();
+
+  const todayEvents = events.filter(e => {
+    const start = e.start.dateTime ? new Date(e.start.dateTime) : new Date(e.start.date);
+    return start.toDateString() === todayStr || e.start.date === now.toISOString().split('T')[0];
+  });
+
+  const futureEvents = events.filter(e => {
+    const start = e.start.dateTime ? new Date(e.start.dateTime) : new Date(e.start.date);
+    return start.toDateString() !== todayStr && start > now;
+  });
+
+  // Today panel
+  if (todayEvents.length === 0) {
+    document.getElementById('today-content').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">✨</div>
+        <p>Nothing scheduled today — enjoy your day!</p>
+      </div>`;
+  } else {
+    let html = '';
+    todayEvents.forEach(e => {
+      const isAllDay = !!e.start.date;
+      const start = isAllDay ? null : new Date(e.start.dateTime);
+      const end = isAllDay ? null : new Date(e.end.dateTime);
+      const isCurrent = !isAllDay && start <= now && end >= now;
+
+      const timeStr = isAllDay ? 'All day' : `${fmt(start)} – ${fmt(end)}`;
+      const tagLabel = isCurrent ? 'Happening now' : (isAllDay ? 'All day' : '');
+      const tagClass = isCurrent ? 'now' : '';
+
+      html += `
+        <div class="event-card ${isCurrent ? 'current' : ''} ${isAllDay ? 'all-day' : ''}">
+          <div class="event-time">${timeStr}</div>
+          <div class="event-name">${escHtml(e.summary || 'Untitled event')}</div>
+          ${e.location ? `<div class="event-location">📍 ${escHtml(e.location)}</div>` : ''}
+          ${tagLabel ? `<span class="event-tag ${tagClass}">${tagLabel}</span>` : ''}
+        </div>`;
+    });
+    document.getElementById('today-content').innerHTML =
+      `<div class="now-indicator"><div class="now-dot"></div><div class="now-text">Live • refreshes every 5 min</div></div>` + html;
+  }
+
+  // Week panel — group by date
+  const grouped = {};
+  futureEvents.forEach(e => {
+    const d = e.start.dateTime ? new Date(e.start.dateTime).toDateString() : new Date(e.start.date + 'T00:00:00').toDateString();
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(e);
+  });
+
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let weekHtml = '';
+
+  Object.entries(grouped).slice(0,7).forEach(([dateStr, evs]) => {
+    const d = new Date(dateStr);
+    const isToday = d.toDateString() === now.toDateString();
+    weekHtml += `
+      <div class="week-day">
+        <div class="week-day-header">
+          <span class="week-day-name">${dayNames[d.getDay()]}</span>
+          <span class="week-day-num ${isToday ? 'today-num' : ''}">${d.getDate()}</span>
+        </div>`;
+    evs.forEach(e => {
+      const isAllDay = !!e.start.date;
+      const start = isAllDay ? null : new Date(e.start.dateTime);
+      const timeStr = isAllDay ? 'All day' : fmt(start);
+      weekHtml += `
+        <div class="week-event">
+          <div class="week-event-dot"></div>
+          <div class="week-event-info">
+            <div class="week-event-name">${escHtml(e.summary || 'Untitled')}</div>
+            <div class="week-event-time">${timeStr}</div>
+          </div>
+        </div>`;
+    });
+    weekHtml += `</div>`;
+  });
+
+  if (!weekHtml) weekHtml = `<div class="empty-state" style="padding:24px 0"><p style="font-size:0.8rem">Nothing else this week</p></div>`;
+  document.getElementById('week-content').innerHTML = weekHtml;
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function fmt(date) {
+  let h = date.getHours(), m = String(date.getMinutes()).padStart(2,'0');
+  const p = h >= 12 ? 'pm' : 'am';
+  h = h % 12 || 12;
+  return m === '00' ? `${h}${p}` : `${h}:${m}${p}`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Demo mode ─────────────────────────────────────────────────
+function showDemoMode() {
+  const demoEvents = [
+    { summary: 'Morning standup', start: { dateTime: today('09:00') }, end: { dateTime: today('09:30') }, location: 'Zoom' },
+    { summary: 'Dentist – Emma', start: { dateTime: today('11:00') }, end: { dateTime: today('12:00') }, location: '123 Main St' },
+    { summary: 'School pickup', start: { dateTime: today('15:30') }, end: { dateTime: today('16:00') } },
+    { summary: 'Family dinner', start: { dateTime: today('18:30') }, end: { dateTime: today('20:00') } },
+    { summary: 'Soccer practice – Liam', start: { dateTime: tomorrow('16:00') }, end: { dateTime: tomorrow('17:30') } },
+    { summary: 'Grocery run', start: { dateTime: tomorrow('10:00') }, end: { dateTime: tomorrow('11:00') } },
+    { summary: 'Date night 🎬', start: { dateTime: dayAfter('19:00') }, end: { dateTime: dayAfter('22:00') } },
+  ];
+  document.getElementById('auth-overlay').style.display = 'none';
+  const btn = document.getElementById('auth-btn');
+  btn.textContent = '📋 Demo mode';
+  btn.className = 'connected';
+  renderEvents(demoEvents);
+}
+
+function today(time) { const d = new Date(); const [h,m] = time.split(':'); d.setHours(+h,+m,0,0); return d.toISOString(); }
+function tomorrow(time) { const d = new Date(); d.setDate(d.getDate()+1); const [h,m] = time.split(':'); d.setHours(+h,+m,0,0); return d.toISOString(); }
+function dayAfter(time) { const d = new Date(); d.setDate(d.getDate()+2); const [h,m] = time.split(':'); d.setHours(+h,+m,0,0); return d.toISOString(); }
+
+// Init
+loadGIS();
+</script>
+</body>
+</html>
